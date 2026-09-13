@@ -17,7 +17,7 @@ SELECT title, price_gbp, rating, in_stock
                                                                                                                              Rip it Up and Start Again      35.02       5         1
                                                                                                                             Chase Me (Paris Nights #2)      25.27       5         1
                                                                                                                                             Black Dust      34.53       5         1
-                                                                                               Worlds Elsewhere: Journeys Around Shakespeareâs Globe      40.30       5         1
+                                                                                                 Worlds Elsewhere: Journeys Around Shakespeare’s Globe      40.30       5         1
                                                                                                                                         Wall and Piece      44.18       4         1
                                                                                             The Four Agreements: A Practical Guide to Personal Freedom      17.66       5         1
                                                                                                                                      The Elephant Tree      23.82       5         1
@@ -152,7 +152,7 @@ SELECT title, price_gbp, rating
                                                                                                Scott Pilgrim's Precious Little Life (Scott Pilgrim #1)      52.29       5
                                                                                                                           We Love You, Charlie Freeman      50.27       5
                                                                                                                            Private Paris (Private #10)      47.61       5
-                                                                                               Worlds Elsewhere: Journeys Around Shakespeareâs Globe      40.30       5
+                                                                                                 Worlds Elsewhere: Journeys Around Shakespeare’s Globe      40.30       5
                                                                                                                                                   Join      35.67       5
                                                                                                                              Rip it Up and Start Again      35.02       5
                                                                                                                                             Black Dust      34.53       5
