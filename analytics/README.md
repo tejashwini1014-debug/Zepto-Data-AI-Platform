@@ -11,147 +11,142 @@ The workflow includes:
 - Univariate, bivariate, and multivariate analysis
 - Exploratory standardization
 - Stratified train/test splitting
-- Preprocessing using `ColumnTransformer` and `Pipeline`
+- Training-only preprocessing using `ColumnTransformer` and `Pipeline`
 - Classification using Logistic Regression, Decision Tree, and Random Forest
-- Class imbalance comparison
-- Random Forest hyperparameter tuning
-- Fare regression
-- Model comparison
-- Saving and reloading the complete machine learning pipeline
+- Confusion matrices and ROC/AUC evaluation
+- Class imbalance comparison using baseline, class weighting, and SMOTE
+- Random Forest hyperparameter tuning using `GridSearchCV`
+- Multivariate Linear Regression for fare prediction
+- Residual analysis and heteroscedasticity check
+- Final model comparison
+- Saving and reloading the complete fitted machine learning pipeline
 
-The raw Titanic dataset was loaded once using Seaborn and saved as `titanic.csv`. The modeling notebook uses the saved CSV rather than loading the raw dataset again.
+The raw Titanic dataset was loaded once using Seaborn and saved as `titanic.csv`.
+
+The modeling notebook reads the saved CSV and does not call `sns.load_dataset("titanic")` again.
 
 ---
 
-## 2. Dataset and Data Loading
+# Part A — Profiling, Cleaning, and Data Story
+
+## 2. Task 1 — Data Loading and Profiling
 
 The Titanic dataset was loaded once using:
 
 ```python
-df = sns.load_dataset("titanic")
+titanic = sns.load_dataset("titanic")
+titanic.to_csv("titanic.csv", index=False)
+```
 
-The original dataset contains:
+The dataset was then loaded from the saved CSV file for all subsequent analysis.
 
-- Rows: 891
-- Columns: 15
+The dataset contains 891 rows and 15 columns.
 
-Immediately after loading, the dataset was saved as:
+The following profiling information was generated:
 
-```python
-df.to_csv("titanic.csv", index=False)
+- `df.info()`
+- `df.describe()`
+- `df.shape`
+- Missing-value percentages for affected columns
 
-
-### Now paste this immediately below it:
-
-```markdown
-The modeling stage reads the saved CSV and does not call `sns.load_dataset("titanic")` again.
-
----
-
-# Part A — Profiling, Cleaning, and Data Analysis
-
-## 3. Task 1 — Data Profiling
-
-The dataset was inspected using:
-
-```python
-df.info()
-df.describe()
-df.shape
-
-Initial dataset shape:
+### Dataset Shape
 
 ```text
-(891, 15)
+Rows: 891
+Columns: 15
+```
 
-### Missing Values
+### Columns With Missing Values
 
 | Column | Missing Values | Missing Percentage |
 |---|---:|---:|
-| age | 177 | 19.87% |
-| embarked | 2 | 0.22% |
-| deck | 688 | 77.22% |
-| embark_town | 2 | 0.22% |
+| age | 177 | 19.8653% |
+| embarked | 2 | 0.2245% |
+| deck | 688 | 77.2166% |
+| embark_town | 2 | 0.2245% |
+
+The `age` column had a moderate amount of missing data, while `deck` had a very high percentage of missing values.
 
 ---
 
-## 4. Task 2 — Missing-Value Handling
+## 3. Task 2 — Missing-Value Handling
 
-The missing-value strategy followed the required percentage-based threshold.
+The following missing-value strategy was used based on the measured missing percentages.
+
+### `age`
+
+The `age` column had 19.8653% missing values.
+
+Since the missing percentage was between 5% and 30%, the missing values were replaced using the median age.
+
+Median imputation was selected because age contains numerical values and the median is less affected by extreme values.
+
+### `embarked`
+
+The `embarked` column had 0.2245% missing values.
+
+Since the missing percentage was below 5%, the affected rows were removed.
+
+### `embark_town`
+
+The `embark_town` column also had 0.2245% missing values.
+
+The affected rows were removed along with the corresponding `embarked` values.
+
+### `deck`
+
+The `deck` column had 77.2166% missing values.
+
+Because the missing percentage was very high, the column was removed instead of performing large-scale imputation.
+
+### Final Cleaning
+
+After cleaning:
+
+```text
+Rows: 889
+Columns: 14
+Remaining missing values: 0
+```
+
+The cleaned dataset was used for the remaining exploratory analysis.
+
+---
+
+## 4. Task 3 — Univariate Analysis and Outlier Detection
+
+Histograms and boxplots were created for `age` and `fare`.
 
 ### Age
 
-`age` had **19.87%** missing values.
+The age distribution was visualized using a histogram.
 
-Since this is between 5% and 30%, median imputation was used.
+A boxplot was also created to identify potential outliers.
 
-### Embarked
+Using the IQR method, 65 age observations were identified as potential outliers.
 
-`embarked` had **0.22%** missing values.
+### Fare
 
-Since the missing percentage was below 5%, the affected rows were removed.
+The fare distribution was visualized using a histogram and boxplot.
 
-### Embark Town
+Using the IQR method, 114 fare observations were identified as potential outliers.
 
-`embark_town` had **0.22%** missing values.
+### Fare Statistics
 
-Since the missing percentage was below 5%, the affected rows were removed.
+| Statistic | Value |
+|---|---:|
+| Mean | 32.0967 |
+| Median | 14.4542 |
+| Mode | 8.05 |
+| Skewness | 4.8014 |
 
-### Deck
+The fare distribution is strongly positively skewed because the mean is considerably higher than the median and the skewness value is positive.
 
-`deck` had **77.22%** missing values.
-
-Because the missing percentage was very high, imputing the column would not be reliable. Therefore, the `deck` column was dropped.
-
-After cleaning, the dataset contained:
-
-```text
-889 rows
-14 columns
-
-No missing values remained in the cleaned dataset.
+The boxplot also shows several high-fare observations.
 
 ---
 
-## 5. Task 3 — Univariate Analysis
-
-Histograms and boxplots were created for both `age` and `fare`.
-
-### Age Outliers
-
-Using the IQR method:
-
-```text
-IQR = 17.875
-Lower bound = -6.6875
-Upper bound = 64.8125
-Number of outliers = 11
-
-### Fare Outliers
-
-Using the IQR method:
-
-```text
-IQR = 23.0896
-Lower bound = -26.724
-Upper bound = 65.6344
-Number of outliers = 116
-### Fare Mean, Median, and Mode
-
-```text
-Mean   = 32.2042
-Median = 14.4542
-Mode   = 8.05
-
-The ordering is:
-
-```text
-Mean > Median > Mode
-This indicates that the `fare` distribution is positively skewed or right-skewed. The high-fare observations pull the mean upward.
-
----
-
-## 6. Task 4 — Survival Analysis and Correlation
+## 5. Task 4 — Survival Analysis and Correlation
 
 Survival rates were calculated using boolean masking for:
 
@@ -164,7 +159,7 @@ Survival rates were calculated using boolean masking for:
 | Sex | Survival Rate |
 |---|---:|
 | Male | 18.89% |
-| Female | 74.20% |
+| Female | 74.04% |
 
 Female passengers had a higher survival rate than male passengers in this dataset.
 
@@ -172,7 +167,7 @@ Female passengers had a higher survival rate than male passengers in this datase
 
 | Passenger Class | Survival Rate |
 |---|---:|
-| 1 | 62.96% |
+| 1 | 62.62% |
 | 2 | 47.28% |
 | 3 | 24.24% |
 
@@ -182,59 +177,78 @@ The survival rate was highest for first-class passengers and lowest for third-cl
 
 | Sex | Class | Survival Rate |
 |---|---:|---:|
+| Female | 1 | 96.74% |
+| Female | 2 | 92.11% |
+| Female | 3 | 50.00% |
 | Male | 1 | 36.89% |
 | Male | 2 | 15.74% |
 | Male | 3 | 13.54% |
-| Female | 1 | 96.81% |
-| Female | 2 | 92.11% |
-| Female | 3 | 50.00% |
 
 ### Correlation Analysis
 
-The correlation matrix was calculated using only:
+The correlation matrix was calculated using exactly these six columns:
 
-`survived`, `pclass`, `age`, `sibsp`, `parch`, and `fare`.
+- `survived`
+- `pclass`
+- `age`
+- `sibsp`
+- `parch`
+- `fare`
+
+The columns `adult_male` and `alone` were excluded.
+
+A correlation heatmap was created using these six columns.
 
 The two strongest absolute off-diagonal correlations were:
 
-| Variables | Correlation |
+| Feature Pair | Correlation |
 |---|---:|
-| pclass and fare | -0.5495 |
-| age and pclass | -0.3692 |
+| pclass — fare | -0.548193 |
+| sibsp — parch | 0.414542 |
 
-The negative correlation between `pclass` and `fare` indicates that lower class numbers, which represent higher passenger classes, were generally associated with higher fares.
+The negative correlation between `pclass` and `fare` indicates that lower passenger-class numbers, representing higher passenger classes, were generally associated with higher fares.
 
-The negative correlation between `age` and `pclass` indicates that age tended to be higher among passengers in lower-numbered passenger classes in this dataset.
+The positive correlation between `sibsp` and `parch` indicates that passengers with more siblings/spouses also tended to have more parents/children traveling with them.
 
 ---
 
-## 7. Task 5 — Multivariate Analysis
+## 6. Task 5 — Multivariate Analysis
 
-Multiple multivariate visualizations were created to understand relationships between different features and survival.
+Multiple multivariate visualizations were created to understand relationships between features and survival.
 
 ### Chart 1 — Survival by Passenger Class and Sex
 
-The chart compares survival rates across passenger classes for male and female passengers. Female passengers generally had higher survival rates than male passengers across all classes. Survival was also generally higher in first class and lower in third class.
+The chart compares survival rates across passenger classes for male and female passengers.
 
-### Chart 2 — Age Distribution by Survival
+Female passengers generally had higher survival rates than male passengers across all classes.
 
-The age distribution was compared between passengers who survived and those who did not. Most passengers were between approximately 20 and 40 years old. The distributions also show that both younger and older passengers were present among survivors and non-survivors.
+Survival was also generally higher in first class and lower in third class.
 
-### Chart 3 — Fare by Passenger Class
+### Chart 2 — Age vs Fare by Survival
 
-Fare distributions were compared across passenger classes. First-class passengers generally paid higher fares than passengers in second and third class. Several high-fare outliers were also observed, particularly in first class.
+The relationship between age and fare was visualized using survival status.
 
-### Chart 4 — Age vs Fare by Survival and Passenger Class
+Most passengers were concentrated at relatively lower fares, while a smaller number of passengers had very high fares.
 
-The relationship between age and fare was visualized using survival status and passenger class. Most passengers had relatively low fares, while a smaller number of passengers had very high fares. Survival patterns varied across different ages, fares, and passenger classes.
+Survival patterns varied across different ages and fare values.
 
-### Chart 5 — Age by Passenger Class and Survival
+### Chart 3 — Fare by Passenger Class and Survival
 
-Age distributions were compared across passenger classes and survival status. The age distribution varied between passenger classes, with first-class passengers generally having a higher median age. Differences between survivors and non-survivors were also visible within the classes.
+Fare distributions were compared across passenger classes and survival status.
+
+First-class passengers generally paid higher fares than passengers in second and third class.
+
+Several high-fare observations were visible, particularly among first-class passengers.
+
+### Chart 4 — Age vs Passenger Class by Survival
+
+Age and passenger class were visualized together using survival status.
+
+The age distribution differed across passenger classes, and survival patterns also varied between survivors and non-survivors within the classes.
 
 ---
 
-## 8. Task 6 — Exploratory Standardization
+## 7. Task 6 — Exploratory Standardization
 
 Standardization was applied to `age` and `fare` on the full cleaned DataFrame for exploratory analysis.
 
@@ -258,26 +272,44 @@ This standardization was used only for exploratory analysis and was not used dir
 
 ---
 
-## 9. Task 7 — Stratified Train/Test Split
+# Part B — Predictive Modeling
 
-The cleaned dataset was divided into training and testing sets using an 80/20 split.
+## 8. Task 7 — Stratified Train/Test Split
 
-A stratified split was used to maintain a similar proportion of survived and non-survived passengers in both sets.
+The cleaned dataset was divided into training and testing sets using an 80/20 stratified split.
 
 ```text
 Training set: 711 rows
 Testing set: 178 rows
+```
+
+The target variable was `survived`.
+
+Stratification was used so that the proportion of survived and not-survived passengers remained similar in both the training and testing sets.
+
+The class proportions were approximately:
+
+```text
+Training:
+Not Survived = 61.74%
+Survived     = 38.26%
+
+Testing:
+Not Survived = 61.80%
+Survived     = 38.20%
+```
 
 ---
 
-## 10. Task 8 — Data Preprocessing
+## 9. Task 8 — Data Preprocessing
 
 Preprocessing was performed using a `ColumnTransformer` and `Pipeline`.
 
-The classification models used the following features:
-
 ### Numerical Features
 
+The numerical features were:
+
+- `pclass`
 - `age`
 - `sibsp`
 - `parch`
@@ -290,6 +322,8 @@ For numerical features:
 
 ### Categorical Features
 
+The categorical features were:
+
 - `sex`
 - `embarked`
 
@@ -299,19 +333,41 @@ For categorical features:
 - Categorical values were converted into numerical form using `OneHotEncoder`.
 - `handle_unknown="ignore"` was used to handle unseen categories.
 
-The preprocessing steps were fitted only on the training data and then applied to the test data. This prevents information from the test set from being used during training.
+The preprocessing steps were fitted only on the training data and then applied to the test data.
+
+This prevents information from the test set from being used during training.
+
+The redundant or derived columns `alive`, `class`, `who`, `adult_male`, and `alone` were not used as model features.
 
 ---
 
-## 11. Task 9 — Classification Models
+## 10. Task 9 — Classification Models
 
-Three classification models were trained using the same training and testing split and the same preprocessing pipeline:
+Three classification models were trained using the same training and testing split and preprocessing pipeline:
 
 1. Logistic Regression
 2. Decision Tree
 3. Random Forest
 
 The preprocessing and classifier were combined into complete pipelines so that the same transformations were applied consistently.
+
+### Initial Random Forest
+
+The initial Random Forest was configured as:
+
+```python
+RandomForestClassifier(
+    n_estimators=100,
+    random_state=42,
+    oob_score=True
+)
+```
+
+The initial Random Forest OOB score was:
+
+```text
+0.8017
+```
 
 ### Decision Tree Visualization
 
@@ -324,32 +380,75 @@ The visualization was limited to the first three levels of the tree for better r
 
 ---
 
-## 12. Task 10 — Model Evaluation and Comparison
+## 11. Task 10 — Model Evaluation and Comparison
 
-The three classification models were evaluated using:
+The classification models were evaluated using:
 
 - Confusion Matrix
 - Accuracy
 - Precision
 - Recall
 - F1-score
+- ROC curve
 - ROC-AUC
 
 ### Classification Model Comparison
 
 | Model | Accuracy | Precision | Recall | F1-score | ROC-AUC |
 |---|---:|---:|---:|---:|---:|
-| Logistic Regression | 0.7809 | 0.7544 | 0.6324 | 0.6880 | 0.8265 |
-| Decision Tree | 0.7697 | 0.7143 | 0.6618 | 0.6870 | 0.7412 |
-| Random Forest | 0.7978 | 0.7759 | 0.6618 | 0.7143 | 0.8211 |
+| Logistic Regression | 0.8090 | 0.7833 | 0.6912 | 0.7344 | 0.8610 |
+| Decision Tree | 0.7640 | 0.7600 | 0.5588 | 0.6441 | 0.8374 |
+| Random Forest | 0.8202 | 0.7812 | 0.7353 | 0.7576 | 0.8179 |
 
-The confusion matrices were also visualized for all three models to compare their classification results.
+### Confusion Matrices
+
+#### Logistic Regression
+
+```text
+TN = 97
+FP = 13
+FN = 21
+TP = 47
+```
+
+#### Decision Tree
+
+```text
+TN = 98
+FP = 12
+FN = 30
+TP = 38
+```
+
+#### Random Forest
+
+```text
+TN = 96
+FP = 14
+FN = 18
+TP = 50
+```
+
+### ROC-AUC
+
+```text
+Logistic Regression = 0.8610
+Decision Tree       = 0.8374
+Random Forest       = 0.8179
+```
+
+ROC curves were generated for all three classifiers.
 
 ---
 
-## 13. Task 11 — Handling Class Imbalance
+## 12. Task 11 — Handling Class Imbalance
 
-The classification target had an imbalanced distribution, with approximately 61.8% non-survived and 38.2% survived passengers.
+The classification target had the following distribution:
+
+| Class | Count | Percentage |
+|---|---:|---:|
+| Not Survived | 549 | 61.75% |
+| Survived | 340 | 38.25% |
 
 Logistic Regression was tested using three approaches:
 
@@ -361,53 +460,86 @@ Logistic Regression was tested using three approaches:
 
 | Method | Precision | Recall | F1-score |
 |---|---:|---:|---:|
-| Baseline | 0.7544 | 0.6324 | 0.6880 |
-| Class Weight Balanced | 0.7500 | 0.7059 | 0.7273 |
-| SMOTE | 0.7460 | 0.6912 | 0.7176 |
+| Baseline | 0.7833 | 0.6912 | 0.7344 |
+| Class Weight Balanced | 0.7183 | 0.7500 | 0.7338 |
+| SMOTE | 0.7353 | 0.7353 | 0.7353 |
 
-The baseline model had a recall of 0.6324 and an F1-score of 0.6880.
+### Conclusion
 
-Using `class_weight="balanced"` increased recall to 0.7059 and F1-score to 0.7273.
+The baseline Logistic Regression achieved the highest precision of 0.7833.
 
-SMOTE also improved recall and F1-score compared with the baseline, but the improvement was smaller than with class weighting.
+The class-weighted model achieved the highest recall of 0.7500.
 
-Among the three tested methods, class weighting produced the highest recall and F1-score.
+SMOTE achieved a balanced precision, recall, and F1-score of 0.7353.
+
+SMOTE was applied only to the training data so that the test set remained completely unseen during resampling.
 
 ---
 
-## 14. Task 12 — Random Forest Hyperparameter Tuning
+## 13. Task 12 — Random Forest Hyperparameter Tuning
 
-GridSearchCV was used to tune the Random Forest classifier.
+`GridSearchCV` was used to tune the Random Forest classifier.
 
 The following hyperparameters were tested:
 
-- `n_estimators`: 100, 200
-- `max_depth`: None, 5, 10
-- `max_features`: sqrt, log2
+```text
+n_estimators = [100, 200]
+max_depth = [None, 5, 10]
+max_features = ["sqrt", "log2"]
+```
 
 Five-fold cross-validation was used with F1-score as the scoring metric.
 
 ### Best Parameters
 
 ```text
-n_estimators = 100
+n_estimators = 200
 max_depth = 5
 max_features = sqrt
+```
+
+### Best Cross-Validation F1
+
+```text
+0.7408
+```
+
+The tuned Random Forest was configured with:
+
+```python
+oob_score=True
+```
+
+### Tuned Random Forest OOB Score
+
+```text
+0.8214
+```
+
+### Tuned Random Forest Test Results
+
+| Metric | Value |
+|---|---:|
+| Accuracy | 0.8315 |
+| Precision | 0.8654 |
+| Recall | 0.6618 |
+| F1 | 0.7500 |
+| ROC-AUC | 0.8389 |
 
 ---
 
-## 15. Task 13 — Fare Prediction Regression
+## 14. Task 13 — Fare Prediction Regression
 
-A regression model was created to predict `fare` using the following features:
+A multivariate Linear Regression model was created to predict `fare`.
+
+The following features were used:
 
 - `pclass`
-- `sex`
 - `age`
 - `sibsp`
 - `parch`
+- `sex`
 - `embarked`
-
-A Linear Regression model was used with preprocessing for numerical and categorical features.
 
 ### Regression Results
 
@@ -416,77 +548,160 @@ A Linear Regression model was used with preprocessing for numerical and categori
 | MAE | 21.1386 |
 | RMSE | 41.7465 |
 | R² | 0.3468 |
-| Adjusted R² | 0.3239 |
+| Adjusted R² | 0.3118 |
 
 ### Residual Analysis
 
 A residual plot was created to examine the relationship between predicted fare values and residuals.
 
-The residual plot showed increasing variation in residuals as the predicted fare increased. Several large residuals were also observed at higher predicted fare values.
+The residual plot showed increasing variation in residuals as the predicted fare increased.
 
-This pattern suggests the presence of heteroscedasticity, meaning that the residual variance is not constant.
+Several larger residuals were also observed at higher predicted fare values.
+
+This pattern suggests the presence of heteroscedasticity, meaning that the residual variance is not constant across the range of predicted fare values.
 
 ---
 
-## 16. Task 14 — Final Model Comparison
+## 15. Task 14 — Final Model Comparison
+
+Classification and regression results were presented separately because they represent different prediction tasks.
 
 ### Classification Models
 
 | Model | Accuracy | Precision | Recall | F1-score | ROC-AUC |
 |---|---:|---:|---:|---:|---:|
-| Logistic Regression | 0.7809 | 0.7544 | 0.6324 | 0.6880 | 0.8265 |
-| Decision Tree | 0.7697 | 0.7143 | 0.6618 | 0.6870 | 0.7412 |
-| Random Forest | 0.7978 | 0.7759 | 0.6618 | 0.7143 | 0.8211 |
+| Logistic Regression | 0.8090 | 0.7833 | 0.6912 | 0.7344 | 0.8610 |
+| Decision Tree | 0.7640 | 0.7600 | 0.5588 | 0.6441 | 0.8374 |
+| Random Forest | 0.8202 | 0.7812 | 0.7353 | 0.7576 | 0.8179 |
+| Tuned Random Forest | 0.8315 | 0.8654 | 0.6618 | 0.7500 | 0.8389 |
 
 ### Regression Model
 
 | Model | MAE | RMSE | R² | Adjusted R² |
 |---|---:|---:|---:|---:|
-| Linear Regression | 21.1386 | 41.7465 | 0.3468 | 0.3239 |
+| Linear Regression | 21.1386 | 41.7465 | 0.3468 | 0.3118 |
 
-### Final Recommendation
+### Final Classifier Recommendation
 
-Among the three classification models, Random Forest achieved the highest accuracy (0.7978), precision (0.7759), and F1-score (0.7143). Logistic Regression achieved the highest ROC-AUC score (0.8265). Decision Tree and Random Forest had the same recall of 0.6618. Based on the overall accuracy, precision, and F1-score, Random Forest provides a strong overall classification result for this experiment. The regression model achieved an R² of 0.3468, indicating that the selected features explain a limited portion of the variation in fare.
+The tuned Random Forest achieved the highest accuracy of 0.8315 and precision of 0.8654 among the evaluated classifiers.
+
+The original Random Forest achieved higher recall of 0.7353 and a higher F1 score of 0.7576, while Logistic Regression achieved the highest ROC-AUC of 0.8610.
+
+The tuned Random Forest was selected as the final classifier for this experiment based on its overall evaluation results.
 
 ---
 
-## 17. Task 15 — Saving and Reloading the Final Pipeline
+## 16. Task 15 — Saving and Reloading the Final Pipeline
 
-The complete preprocessing and Random Forest model were combined into a single pipeline.
+The complete preprocessing and final Random Forest model were combined into one pipeline.
 
-The fitted pipeline was saved using `joblib`:
+The fitted pipeline was saved using:
 
 ```python
 joblib.dump(final_pipeline, "model_pipeline.joblib")
+```
 
 The saved pipeline was then reloaded using:
 
 ```python
 loaded_pipeline = joblib.load("model_pipeline.joblib")
+```
 
 A new passenger record was provided to the reloaded pipeline for prediction.
 
-### Example Prediction
+### Example Raw Input
 
 ```text
-Passenger:
 pclass = 1
 sex = female
-age = 25
+age = 30
 sibsp = 0
 parch = 0
 fare = 80.0
 embarked = S
+```
 
-The model predicted:
-
-```text
-Prediction: Survived
-
-Prediction probabilities:
+### Prediction
 
 ```text
-Not Survived: 0.1189
-Survived: 0.8811
+Prediction: 1
+Survival probability: 0.9676
+Result: Survived
+```
 
-This confirms that the complete fitted pipeline can be saved, reloaded, and used for prediction on new input data.
+This confirms that the complete fitted pipeline can be saved, reloaded, and used for prediction on new raw input data.
+
+---
+
+## 17. Module 2 File Structure
+
+```text
+analytics/
+├── 01_eda.ipynb
+├── 02_modeling.ipynb
+├── README.md
+├── titanic.csv
+└── model_pipeline.joblib
+```
+
+The offline Titanic dataset is:
+
+```text
+analytics/titanic.csv
+```
+
+The saved complete machine learning pipeline is:
+
+```text
+analytics/model_pipeline.joblib
+```
+
+---
+
+## 18. Module 2 End-to-End Workflow
+
+```text
+Titanic Dataset
+      ↓
+Load Dataset Once
+      ↓
+Save titanic.csv
+      ↓
+Data Profiling
+      ↓
+Missing-Value Analysis
+      ↓
+Data Cleaning
+      ↓
+EDA and Visualization
+      ↓
+Exploratory Standardization
+      ↓
+Stratified Train/Test Split
+      ↓
+Training-Only Preprocessing
+      ↓
+Logistic Regression
+Decision Tree
+Random Forest
+      ↓
+Model Evaluation
+      ↓
+Class Imbalance Comparison
+      ↓
+Random Forest GridSearchCV
+      ↓
+Tuned Random Forest
+      ↓
+Fare Regression
+      ↓
+Final Model Comparison
+      ↓
+Save Complete Pipeline
+      ↓
+Reload Pipeline
+      ↓
+Predict New Raw Input
+```
+
+This completes the required Module 2 analytics and predictive modeling workflow.
